@@ -1,6 +1,6 @@
 # Moonshare
 
-![Moonshare Logo oder Screenshot](https://www.google.com/url?sa=i&url=https%3A%2F%2Fwallpapercrafter.com%2F172178-moon-girl-luna-anime-manga-morncolour-pink-blue-luminos.html&psig=AOvVaw1N5uysNnf9rt8fru2QSgSo&ust=1752888758907000&source=images&cd=vfe&opi=89978449&ved=0CBUQjRxqFwoTCNj3-NShxY4DFQAAAAAdAAAAABAL)  
+![Moonshare Logo oder Screenshot](https://www.google.com/url?sa=i&url=https%3A%2F%2Fwallpapercrafter.com%2F172178-moon-girl-luna-anime-manga-morncolour-pink-blue-luminos.html&psig=AOvVaw1N5uysNnf9rt8fru2QSgSo&ust=1752888758907000&source=images&cd=vfe&opi=89978449&ved=0CBUQjRxqFwoTCNj3-NShxY4DFQAAAAAdAAAAABAL.png)  
 *Ein Plugin für Dalamud, das Dateitransfer und Verbindungsfunktionen für FINAL FANTASY XIV ermöglicht.*
 
 ---
