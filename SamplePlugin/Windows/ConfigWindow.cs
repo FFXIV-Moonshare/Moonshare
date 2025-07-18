@@ -9,16 +9,20 @@ public class ConfigWindow : Window, IDisposable
 {
     private Configuration Configuration;
 
-    // We give this window a constant ID using ###
-    // This allows for labels being dynamic, like "{FPS Counter}fps###XYZ counter window",
-    // and the window ID will always be "###XYZ counter window" for ImGui
-    public ConfigWindow(Plugin plugin) : base("A Wonderful Configuration Window###With a constant ID")
+    public ConfigWindow(Plugin plugin) : base("Moonshare Einstellungen###MoonshareConfigWindow")
     {
-        Flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar |
-                ImGuiWindowFlags.NoScrollWithMouse;
+        // Entferne NoResize, damit das Fenster resizable ist
+        Flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 
-        Size = new Vector2(232, 90);
-        SizeCondition = ImGuiCond.Always;
+        // Anfangsgröße (kann frei verändert werden)
+        Size = new Vector2(400, 300);
+
+        // Optional: Minimale/maximale Fenstergröße
+        SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(300, 200),
+            MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
+        };
 
         Configuration = plugin.Configuration;
     }
@@ -27,33 +31,69 @@ public class ConfigWindow : Window, IDisposable
 
     public override void PreDraw()
     {
-        // Flags must be added or removed before Draw() is being called, or they won't apply
+        // Fenster beweglich machen, wenn aktiviert
         if (Configuration.IsConfigWindowMovable)
-        {
             Flags &= ~ImGuiWindowFlags.NoMove;
-        }
         else
-        {
             Flags |= ImGuiWindowFlags.NoMove;
-        }
     }
 
     public override void Draw()
     {
-        // can't ref a property, so use a local copy
-        var configValue = Configuration.SomePropertyToBeSavedAndWithADefault;
-        if (ImGui.Checkbox("Random Config Bool", ref configValue))
-        {
-            Configuration.SomePropertyToBeSavedAndWithADefault = configValue;
-            // can save immediately on change, if you don't want to provide a "Save and Close" button
-            Configuration.Save();
-        }
+        ImGui.TextWrapped("Hier kannst du die Einstellungen für das Moonshare-Plugin anpassen:");
 
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        // Boolean Setting: Fenster beweglich
         var movable = Configuration.IsConfigWindowMovable;
-        if (ImGui.Checkbox("Movable Config Window", ref movable))
+        if (ImGui.Checkbox("Fenster beweglich", ref movable))
         {
             Configuration.IsConfigWindowMovable = movable;
             Configuration.Save();
         }
+
+        // Boolean Setting: Auto Reconnect
+        var autoReconnect = Configuration.EnableAutoReconnect;
+        if (ImGui.Checkbox("Auto Reconnect aktivieren", ref autoReconnect))
+        {
+            Configuration.EnableAutoReconnect = autoReconnect;
+            Configuration.Save();
+        }
+
+        ImGui.Spacing();
+
+        // String Setting: Server Adresse
+        var serverAddr = Configuration.ServerAddress;
+        if (ImGui.InputText("Server-Adresse", ref serverAddr, 256))
+        {
+            Configuration.ServerAddress = serverAddr;
+            Configuration.Save();
+        }
+
+        ImGui.Spacing();
+
+        // Integer Setting: Reconnect Delay in Sekunden
+        var reconnectDelay = Configuration.ReconnectDelaySeconds;
+        if (ImGui.InputInt("Reconnect Delay (Sekunden)", ref reconnectDelay))
+        {
+            Configuration.ReconnectDelaySeconds = Math.Max(1, reconnectDelay);
+            Configuration.Save();
+        }
+
+        ImGui.Spacing();
+
+        // Integer Setting: Max gleichzeitige Transfers
+        var maxTransfers = Configuration.MaxConcurrentTransfers;
+        if (ImGui.InputInt("Max. gleichzeitige Transfers", ref maxTransfers))
+        {
+            Configuration.MaxConcurrentTransfers = Math.Clamp(maxTransfers, 1, 10);
+            Configuration.Save();
+        }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+
+        ImGui.TextWrapped("Weitere Einstellungen können hier hinzugefügt werden...");
     }
 }

@@ -5,6 +5,8 @@ VisualStudioVersion = 17.14.36212.18
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Moonshare", "SamplePlugin\Moonshare.csproj", "{13C812E9-0D42-4B95-8646-40EEBF30636F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Moonshare Server", "Moonshare Server\Moonshare Server.csproj", "{99FD6DE2-F696-49EF-8AE6-22AE70E0D561}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -15,6 +17,10 @@ Global
 		{13C812E9-0D42-4B95-8646-40EEBF30636F}.Debug|x64.Build.0 = Debug|x64
 		{13C812E9-0D42-4B95-8646-40EEBF30636F}.Release|x64.ActiveCfg = Release|x64
 		{13C812E9-0D42-4B95-8646-40EEBF30636F}.Release|x64.Build.0 = Release|x64
+		{99FD6DE2-F696-49EF-8AE6-22AE70E0D561}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{99FD6DE2-F696-49EF-8AE6-22AE70E0D561}.Debug|x64.Build.0 = Debug|Any CPU
+		{99FD6DE2-F696-49EF-8AE6-22AE70E0D561}.Release|x64.ActiveCfg = Release|Any CPU
+		{99FD6DE2-F696-49EF-8AE6-22AE70E0D561}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

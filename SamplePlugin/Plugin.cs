@@ -5,7 +5,9 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ImGuiNET;
 using Moonshare_Plugin.Windows;
+using System;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Moonshare_Plugin;
 
@@ -30,13 +32,15 @@ public sealed class Plugin : IDalamudPlugin
     public readonly WindowSystem WindowSystem = new("Moonshare");
 
     private ConfigWindow ConfigWindow { get; init; }
-    private MainWindow MainWindow { get; init; }
+    public MainWindow MainWindow { get; init; }
+
+    private readonly Action loginHandler;
 
     public Plugin()
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 
-        Session = new UserSessionManager();
+        Session = new UserSessionManager(PluginInterface, Log);
 
         var goatImagePath = Path.Combine(PluginInterface.AssemblyLocation.Directory?.FullName!, "goat.png");
 
@@ -51,8 +55,8 @@ public sealed class Plugin : IDalamudPlugin
             HelpMessage = "Zeigt das Moonshare-Pluginfenster an."
         });
 
-        // Login-Event abonnieren (parameterloser Delegate)
-        ClientState.Login += OnLogin;
+        loginHandler = () => _ = OnLoginAsync();
+        ClientState.Login += loginHandler;
 
         PluginInterface.UiBuilder.Draw += DrawUI;
         PluginInterface.UiBuilder.Draw += DrawMainMenu;
@@ -62,10 +66,30 @@ public sealed class Plugin : IDalamudPlugin
         Log.Information("=== Moonshare Plugin gestartet ===");
     }
 
-    private void OnLogin()
+    private async Task OnLoginAsync()
     {
-        Session.Initialize();
-        ClientState.Login -= OnLogin; // einmalig ausführen
+        Log.Information("[Moonshare] Versuche Verbindung zum WebSocket-Server...");
+
+        try
+        {
+            await Session.InitializeAsync();
+
+            if (Session.IsConnected)
+            {
+                Log.Information($"[Moonshare] Verbindung erfolgreich. UserID: {Session.LocalUserId}");
+                MainWindow.IsOpen = true;
+            }
+            else
+            {
+                Log.Warning("[Moonshare] Verbindung fehlgeschlagen. Server erreichbar?");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[Moonshare] Fehler beim Verbindungsaufbau.");
+        }
+
+        ClientState.Login -= loginHandler;
     }
 
     public void Dispose()
@@ -82,8 +106,7 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUI;
         PluginInterface.UiBuilder.OpenMainUi -= ToggleMainUI;
 
-        // Event sauber abmelden falls Dispose vor Login
-        ClientState.Login -= OnLogin;
+        ClientState.Login -= loginHandler;
 
         Log.Information("=== Moonshare Plugin entladen ===");
     }

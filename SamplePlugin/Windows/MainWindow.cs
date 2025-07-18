@@ -1,75 +1,101 @@
 using Dalamud.Interface.Windowing;
-using FFXIVClientStructs.FFXIV.Common.Math;
 using ImGuiNET;
 using Moonshare_Plugin;
 using System;
-using static Dalamud.Interface.Windowing.Window;
+using System.Numerics; // Für Vector4
+using System.Threading.Tasks;
 
 public class MainWindow : Window, IDisposable
 {
     private readonly Plugin plugin;
-    private readonly string imagePath;
 
-    private string otherUserInput = "";
-    private string localIdBuffer = "";
+    private string connectInput = ""; // UserId, zu der verbunden werden soll
+    private bool isConnecting = false; // Damit man den Button während Verbindungsversuch deaktiviert
 
-    public MainWindow(Plugin plugin, string imagePath) : base("📁 FileLinker Verbindung")
+    public MainWindow(Plugin plugin, string goatImagePath) : base("📁 Moonshare Verbindung")
     {
         this.plugin = plugin;
-        this.imagePath = imagePath;
-
-        localIdBuffer = plugin.Session.LocalUserId ?? "";
-
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(400, 200),
-            MaximumSize = new Vector2(9999, 9999)
+            MinimumSize = new Vector2(400, 180),
+            MaximumSize = new Vector2(800, 600)
         };
     }
 
-    public void UpdateLocalId()
+    public void Dispose()
     {
-        localIdBuffer = plugin.Session.LocalUserId ?? "";
     }
-
-    public void Dispose() { }
 
     public override void Draw()
     {
-        ImGui.Text("Deine eindeutige UserID:");
-
-        // NICHT localIdBuffer hier überschreiben!
-        ImGui.InputText("##localid", ref localIdBuffer, 64, ImGuiInputTextFlags.ReadOnly);
-
-        ImGui.Spacing();
-        ImGui.Separator();
-
-        ImGui.Text("Verbindung zu anderem Spieler:");
-        ImGui.InputText("UserID eingeben", ref otherUserInput, 64);
-
-        if (ImGui.Button("Verbinden"))
-        {
-            if (!string.IsNullOrWhiteSpace(otherUserInput))
-            {
-                plugin.Session.ConnectTo(otherUserInput.Trim());
-            }
-        }
+        ImGui.Text("Status: ");
 
         if (plugin.Session.IsConnected)
         {
-            ImGui.TextColored(new Vector4(0, 1, 0, 1), $"✅ Verbunden mit: {plugin.Session.ConnectedToUserId}");
-            if (ImGui.Button("Verbindung trennen"))
+            ImGui.TextColored(new Vector4(0, 1, 0, 1), $"✅ Verbunden als {plugin.Session.LocalUserId}");
+        }
+        else
+        {
+            ImGui.TextColored(new Vector4(1, 0, 0, 1), "❌ Nicht verbunden");
+        }
+
+        ImGui.Separator();
+        ImGui.Text("UserID zum Verbinden eingeben:");
+
+        ImGui.InputText("##connectInput", ref connectInput, 64);
+
+        if (!plugin.Session.IsConnected)
+        {
+            if (isConnecting)
             {
-                plugin.Session.Disconnect();
+                ImGui.Text("Verbindung wird hergestellt...");
+                ImGui.BeginDisabled();
+                ImGui.Button("Verbinden");
+                ImGui.EndDisabled();
+            }
+            else
+            {
+                if (ImGui.Button("Verbinden"))
+                {
+                    if (!string.IsNullOrWhiteSpace(connectInput))
+                    {
+                        _ = ConnectAsync(connectInput.Trim());
+                    }
+                }
             }
         }
         else
         {
-            ImGui.TextColored(new Vector4(1, 1, 0, 1), "⚠ Nicht verbunden.");
+            if (ImGui.Button("Verbindung trennen"))
+            {
+                _ = plugin.Session.DisconnectAsync();
+            }
         }
+    }
 
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Text("📦 Dateiübertragung wird vorbereitet …");
+    private async Task ConnectAsync(string userId)
+    {
+        try
+        {
+            isConnecting = true;
+            await plugin.Session.InitializeAsync();
+
+            if (plugin.Session.IsConnected)
+            {
+                await plugin.Session.ConnectToAsync(userId);
+            }
+            else
+            {
+                Plugin.Log.Warning("⚠️ Verbindung zum Server konnte nicht hergestellt werden.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Error($"❌ Fehler beim Verbindungsaufbau: {ex}");
+        }
+        finally
+        {
+            isConnecting = false;
+        }
     }
 }
