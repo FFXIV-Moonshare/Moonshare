@@ -1,76 +1,85 @@
-> ⚠️ **Don't click Fork!**
-> 
-> This is a GitHub Template repo. If you want to use this for a plugin, just [use this template][new-repo] to make a new repo!
->
-> ![image](https://github.com/goatcorp/SamplePlugin/assets/16760685/d9732094-e1ed-4769-a70b-58ed2b92580c)
+# Moonshare
 
-# SamplePlugin
+![Moonshare Logo oder Screenshot](https://github.com/your-repo-or-image-link.png)  
+*Ein Plugin für Dalamud, das Dateitransfer und Verbindungsfunktionen für FINAL FANTASY XIV ermöglicht.*
 
-[![Use This Template badge](https://img.shields.io/badge/Use%20This%20Template-0?logo=github&labelColor=grey)][new-repo]
+---
 
+## Übersicht
 
-Simple example plugin for Dalamud.
+**Moonshare** ist ein Dalamud-Plugin für FINAL FANTASY XIV, das es Spielern ermöglicht, sich untereinander mit eindeutigen UserIDs zu verbinden und Dateien sicher auszutauschen. Es bietet eine einfache Benutzeroberfläche zur Verwaltung der Verbindung und des Transfers, inklusive:
 
-This is not designed to be the simplest possible example, but it is also not designed to cover everything you might want to do. For more detailed questions, come ask in [the Discord](https://discord.gg/holdshift).
+- Eindeutige lokale UserID zur Identifikation
+- Verbindungsaufbau zu anderen Spielern via deren UserID
+- Statusanzeige der Verbindung und Möglichkeit zur Trennung
+- Vorbereitung und Verwaltung von Dateiübertragungen
 
-## Main Points
+---
 
-* Simple functional plugin
-  * Slash command
-  * Main UI
-  * Settings UI
-  * Image loading
-  * Plugin json
-* Simple, slightly-improved plugin configuration handling
-* Project organization
-  * Copies all necessary plugin files to the output directory
-    * Does not copy dependencies that are provided by dalamud
-    * Output directory can be zipped directly and have exactly what is required
-  * Hides data files from visual studio to reduce clutter
-    * Also allows having data files in different paths than VS would usually allow if done in the IDE directly
+## Features
 
+- Intuitive grafische Oberfläche mit ImGui-Integration
+- Einfacher Slash-Befehl zur schnellen Anzeige des Plugins: `/moonshare`
+- Speicherung der Konfiguration automatisch im Plugin-Ordner
+- Saubere Verwaltung von Verbindungen zwischen Spielern
+- Erweiterbar und quelloffen für individuelle Anpassungen
 
-The intention is less that any of this is used directly in other projects, and more to show how similar things can be done.
+---
 
-## How To Use
+## Installation
 
-### Getting Started
+1. Stelle sicher, dass du FINAL FANTASY XIV mit Dalamud und XIVLauncher installiert und mindestens einmal gestartet hast.  
+2. Lade die aktuelle Version des Moonshare Plugins von [deinem Release-Archiv] herunter.  
+3. Füge die Plugin-DLL in Dalamuds Entwicklungs-Plugin-Verzeichnis ein (über `/xlsettings` → Experimental → Dev Plugin Locations).  
+4. Aktiviere das Plugin über `/xlplugins` → Dev Tools → Installed Dev Plugins → Moonshare.  
+5. Nutze `/moonshare`, um das Pluginfenster zu öffnen.
 
-To begin, [clone this template repository][new-repo] to your own GitHub account. This will automatically bring in everything you need to get a jumpstart on development. You do not need to fork this repository unless you intend to contribute modifications to it.
+---
 
-Be sure to also check out the [Dalamud Developer Docs][dalamud-docs] for helpful information about building your own plugin. The Developer Docs includes helpful information about all sorts of things, including [how to submit][submit] your newly-created plugin to the official repository. Assuming you use this template repository, the provided project build configuration and license are already chosen to make everything a breeze.
+## Nutzung
 
-[new-repo]: https://github.com/new?template_name=SamplePlugin&template_owner=goatcorp
-[dalamud-docs]: https://dalamud.dev
-[submit]: https://dalamud.dev/plugin-development/plugin-submission
+- Öffne das Pluginfenster mit `/moonshare`.  
+- Deine lokale UserID wird oben angezeigt — teile sie mit anderen Spielern, um eine Verbindung aufzubauen.  
+- Gib die UserID eines anderen Spielers in das Eingabefeld ein und klicke „Verbinden“.  
+- Verbundene Spieler können Dateien austauschen (je nach Plugin-Implementierung).  
+- Über den Button „Verbindung trennen“ kannst du die Verbindung jederzeit beenden.
 
-### Prerequisites
+---
 
-SamplePlugin assumes all the following prerequisites are met:
+## Entwicklung & Anpassung
 
-* XIVLauncher, FINAL FANTASY XIV, and Dalamud have all been installed and the game has been run with Dalamud at least once.
-* XIVLauncher is installed to its default directories and configurations.
-  * If a custom path is required for Dalamud's dev directory, it must be set with the `DALAMUD_HOME` environment variable.
-* A .NET Core 8 SDK has been installed and configured, or is otherwise available. (In most cases, the IDE will take care of this.)
+Das Plugin ist in C# mit Dalamud API und ImGuiNET geschrieben. Der Quellcode ist modular aufgebaut:
 
-### Building
+- **Plugin.cs**: Hauptklasse mit Lifecycle und Eventhandling  
+- **UserSessionManager.cs**: Verwaltung von UserIDs, Verbindungen und Transfers  
+- **Windows/**: ImGui UI-Fenster, z.B. MainWindow.cs für die GUI  
 
-1. Open up `SamplePlugin.sln` in your C# editor of choice (likely [Visual Studio 2022](https://visualstudio.microsoft.com) or [JetBrains Rider](https://www.jetbrains.com/rider/)).
-2. Build the solution. By default, this will build a `Debug` build, but you can switch to `Release` in your IDE.
-3. The resulting plugin can be found at `SamplePlugin/bin/x64/Debug/SamplePlugin.dll` (or `Release` if appropriate.)
+Die Konfigurationsdatei wird automatisch im Pluginordner gespeichert und geladen (`Moonshare/Moonshare.json`).
 
-### Activating in-game
+---
 
-1. Launch the game and use `/xlsettings` in chat or `xlsettings` in the Dalamud Console to open up the Dalamud settings.
-    * In here, go to `Experimental`, and add the full path to the `SamplePlugin.dll` to the list of Dev Plugin Locations.
-2. Next, use `/xlplugins` (chat) or `xlplugins` (console) to open up the Plugin Installer.
-    * In here, go to `Dev Tools > Installed Dev Plugins`, and the `SamplePlugin` should be visible. Enable it.
-3. You should now be able to use `/pmycommand` (chat) or `pmycommand` (console)!
+## Voraussetzungen
 
-Note that you only need to add it to the Dev Plugin Locations once (Step 1); it is preserved afterwards. You can disable, enable, or load your plugin on startup through the Plugin Installer.
+- XIVLauncher & FINAL FANTASY XIV mit aktiviertem Dalamud-Framework  
+- .NET 8 SDK für Entwicklung (nicht zwingend zum Nutzen nötig)  
+- Internetverbindung zum Austausch von Dateien (je nach Use-Case)  
 
-### Reconfiguring for your own uses
+---
 
-Basically, just replace all references to `SamplePlugin` in all of the files and filenames with your desired name, then start building the plugin of your dreams. You'll figure it out 😁
+## Support & Mitmachen
 
-Dalamud will load the JSON file (by default, `SamplePlugin/SamplePlugin.json`) next to your DLL and use it for metadata, including the description for your plugin in the Plugin Installer. Make sure to update this with information relevant to _your_ plugin!
+Bei Fragen, Fehlern oder Verbesserungsvorschlägen besuche unseren [Discord-Server](https://discord.gg/holdshift) oder öffne Issues auf GitHub.
+
+---
+
+## Lizenz
+
+Moonshare ist unter der MIT-Lizenz lizenziert. Siehe LICENSE-Datei im Repository.
+
+---
+
+> **Hinweis:** Dieses Plugin ist kein offizielles Square Enix Produkt und steht in keiner Verbindung mit den Entwicklern von FINAL FANTASY XIV.
+
+---
+
+### Danke fürs Nutzen und viel Spaß beim sicheren Teilen mit Moonshare! 🎉
