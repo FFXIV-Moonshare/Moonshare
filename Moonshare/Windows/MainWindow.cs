@@ -10,7 +10,7 @@ public class MainWindow : Window, IDisposable
     private readonly Plugin plugin;
 
     private string connectInput = ""; // UserId, zu der verbunden werden soll
-    private bool isConnecting = false; // Damit man den Button während Verbindungsversuch deaktiviert
+    private bool isConnecting = false; // Button deaktivieren während Verbindungsversuch
 
     public MainWindow(Plugin plugin, string goatImagePath) : base("📁 Moonshare Verbindung")
     {
@@ -24,6 +24,7 @@ public class MainWindow : Window, IDisposable
 
     public void Dispose()
     {
+        // Hier ggf. Ressourcen freigeben, falls nötig
     }
 
     public override void Draw()
@@ -48,10 +49,10 @@ public class MainWindow : Window, IDisposable
         {
             if (isConnecting)
             {
-                ImGui.Text("Verbindung wird hergestellt...");
                 ImGui.BeginDisabled();
                 ImGui.Button("Verbinden");
                 ImGui.EndDisabled();
+                ImGui.Text("Verbindung wird hergestellt...");
             }
             else
             {
@@ -60,6 +61,10 @@ public class MainWindow : Window, IDisposable
                     if (!string.IsNullOrWhiteSpace(connectInput))
                     {
                         _ = ConnectAsync(connectInput.Trim());
+                    }
+                    else
+                    {
+                        Plugin.Log.Warning("⚠️ Bitte eine gültige UserID eingeben.");
                     }
                 }
             }

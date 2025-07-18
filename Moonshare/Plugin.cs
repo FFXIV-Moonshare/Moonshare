@@ -72,7 +72,7 @@ public sealed class Plugin : IDalamudPlugin
 
         try
         {
-            await Session.InitializeAsync();
+            Session.InitializeAsync();
 
             if (Session.IsConnected)
             {

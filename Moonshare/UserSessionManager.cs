@@ -2,25 +2,24 @@ using Dalamud.Logging;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using System;
-using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
+using WebSocketSharp;
 
 namespace Moonshare_Plugin
 {
     public class UserSessionManager : IDisposable
     {
-        private ClientWebSocket? socket;
-        private CancellationTokenSource? cts;
-
+        private WebSocket? socket;
         private readonly IDalamudPluginInterface pluginInterface;
         private readonly IPluginLog log;
 
         public string? LocalUserId { get; private set; }
+        public string? SessionToken { get; private set; }
         public string? ConnectedToUserId { get; private set; }
-        public bool IsConnected => socket?.State == WebSocketState.Open;
+
+        public bool IsConnected => socket?.IsAlive == true;
 
         public UserSessionManager(IDalamudPluginInterface pluginInterface, IPluginLog log)
         {
@@ -30,48 +29,53 @@ namespace Moonshare_Plugin
 
         public async Task InitializeAsync()
         {
-            cts?.Cancel();
-            cts = new CancellationTokenSource();
-            socket?.Dispose();
-            socket = new ClientWebSocket();
+            await AuthenticateAndConnect();
+        }
 
+        private async Task AuthenticateAndConnect()
+        {
             try
             {
-                var serverUri = new Uri("ws://localhost:5000/ws");
-                log.Information("🌐 Starte Verbindung zum Server...");
-                await socket.ConnectAsync(serverUri, cts.Token);
-                log.Information("✅ Verbunden mit Moonshare-Server.");
+                string userId = "moonshare_user";
 
-                // Hier starten wir den ReceiveLoop und warten darauf, aber in eigenem Task
-                _ = Task.Run(ReceiveLoop, cts.Token);
+                var authToken = await GetAuthTokenAsync(userId);
+                if (authToken == null)
+                {
+                    log.Error("❌ Authentifizierung fehlgeschlagen. Kein Token erhalten.");
+                    return;
+                }
+
+                this.LocalUserId = userId;
+                this.SessionToken = authToken;
+                log.Information($"✅ Authentifiziert als {userId} mit Token: {authToken}");
             }
             catch (Exception ex)
             {
-                log.Error($"❌ Verbindung fehlgeschlagen: {ex}");
-                // Socket ggf. säubern
-                socket.Dispose();
-                socket = null;
-                cts.Cancel();
+                log.Error($"❌ Fehler bei Authentifizierung: {ex}");
+                return;
             }
-        }
-
-        private async Task ReceiveLoop()
-        {
-            var buffer = new byte[4096];
 
             try
             {
-                while (socket?.State == WebSocketState.Open && !cts.Token.IsCancellationRequested)
-                {
-                    var result = await socket.ReceiveAsync(buffer, cts.Token);
-                    if (result.MessageType == WebSocketMessageType.Close)
-                    {
-                        log.Information("❌ Server hat Verbindung geschlossen.");
-                        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Bye", CancellationToken.None);
-                        break;
-                    }
+                socket = new WebSocket("ws://localhost:5000/ws");
 
-                    var msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                socket.OnOpen += (sender, e) =>
+                {
+                    log.Information("✅ Verbunden mit Moonshare-Server.");
+
+                    var authMsg = new
+                    {
+                        type = "register",
+                        userId = LocalUserId,
+                        token = SessionToken
+                    };
+                    string json = JsonSerializer.Serialize(authMsg);
+                    socket.Send(json);
+                };
+
+                socket.OnMessage += (sender, e) =>
+                {
+                    var msg = e.Data;
                     log.Information($"⬇️ Empfangen: {msg}");
 
                     try
@@ -98,31 +102,62 @@ namespace Moonshare_Plugin
                             }
                         }
                     }
-                    catch (Exception e)
+                    catch (Exception ex)
                     {
-                        log.Warning($"⚠️ Fehler beim Parsen der Nachricht: {e}");
+                        log.Warning($"⚠️ Fehler beim Parsen der Nachricht: {ex}");
                     }
-                }
+                };
+
+                socket.OnError += (sender, e) =>
+                {
+                    log.Error($"❌ WebSocket Fehler: {e.Message}");
+                };
+
+                socket.OnClose += (sender, e) =>
+                {
+                    log.Information($"ℹ️ Verbindung geschlossen: {e.Reason}");
+                };
+
+                socket.Connect();
             }
-            catch (OperationCanceledException)
+            catch (Exception ex)
             {
-                log.Information("ℹ️ ReceiveLoop wurde abgebrochen.");
+                log.Error($"❌ Verbindung fehlgeschlagen: {ex}");
             }
-            catch (Exception e)
+        }
+
+        private async Task<string?> GetAuthTokenAsync(string userId)
+        {
+            using var authSocket = new System.Net.WebSockets.ClientWebSocket();
+            var authUri = new Uri("ws://localhost:5001/auth");
+
+            try
             {
-                log.Warning($"❌ Fehler im ReceiveLoop: {e}");
+                await authSocket.ConnectAsync(authUri, System.Threading.CancellationToken.None);
+                var buffer = Encoding.UTF8.GetBytes(userId);
+                await authSocket.SendAsync(buffer, System.Net.WebSockets.WebSocketMessageType.Text, true, System.Threading.CancellationToken.None);
+
+                var receiveBuffer = new byte[1024];
+                var result = await authSocket.ReceiveAsync(receiveBuffer, System.Threading.CancellationToken.None);
+                var response = Encoding.UTF8.GetString(receiveBuffer, 0, result.Count);
+
+                if (response.StartsWith("AUTH_SUCCESS:"))
+                    return response["AUTH_SUCCESS:".Length..];
+                else
+                    return null;
             }
-            finally
+            catch (Exception ex)
             {
-                log.Information("🔌 ReceiveLoop beendet.");
+                log.Error($"❌ Fehler bei Verbindung zum AuthServer: {ex}");
+                return null;
             }
         }
 
         public async Task ConnectToAsync(string otherUserId)
         {
-            if (!IsConnected)
+            if (socket == null || !socket.IsAlive)
             {
-                log.Warning("⚠️ Nicht mit Server verbunden.");
+                log.Warning("⚠️ Nicht verbunden, kann nicht verbinden.");
                 return;
             }
 
@@ -132,45 +167,36 @@ namespace Moonshare_Plugin
                 targetUserId = otherUserId
             };
 
-            var json = JsonSerializer.Serialize(msg);
-            var bytes = Encoding.UTF8.GetBytes(json);
-
-            try
-            {
-                await socket!.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
-                ConnectedToUserId = otherUserId;
-                log.Information($"🔗 Verbindung zu {otherUserId} wird versucht...");
-            }
-            catch (Exception ex)
-            {
-                log.Error($"❌ Fehler beim Senden der Verbindungsnachricht: {ex}");
-            }
+            string json = JsonSerializer.Serialize(msg);
+            await Task.Run(() => socket.Send(json));
+            ConnectedToUserId = otherUserId;
+            log.Information($"🔗 Verbindungsversuch zu {otherUserId} gesendet.");
         }
 
         public async Task DisconnectAsync()
         {
-            if (!IsConnected) return;
+            if (socket == null || !socket.IsAlive)
+            {
+                log.Warning("⚠️ Nicht verbunden, kann nicht trennen.");
+                return;
+            }
 
             var msg = new { type = "disconnect" };
-            var json = JsonSerializer.Serialize(msg);
-            var bytes = Encoding.UTF8.GetBytes(json);
+            string json = JsonSerializer.Serialize(msg);
 
-            try
-            {
-                await socket!.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
-                ConnectedToUserId = null;
-                log.Information("⛔️ Verbindung getrennt.");
-            }
-            catch (Exception ex)
-            {
-                log.Error($"❌ Fehler beim Senden der Trennnachricht: {ex}");
-            }
+            await Task.Run(() => socket.Send(json));
+            ConnectedToUserId = null;
+            log.Information("⛔️ Verbindung getrennt.");
         }
 
         public void Dispose()
         {
-            cts?.Cancel();
-            socket?.Dispose();
+            if (socket != null)
+            {
+                if (socket.IsAlive)
+                    socket.Close();
+                socket = null;
+            }
         }
     }
 }
