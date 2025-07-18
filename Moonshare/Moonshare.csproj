@@ -20,4 +20,11 @@
   </Content>
 </ItemGroup>
 
+<ItemGroup>
+  <None Include=".editorconfig" />
+  <None Include=".gitignore" />
+  <None Include="LICENSE.md" />
+  <None Include="README.md" />
+</ItemGroup>
+
 </Project>
