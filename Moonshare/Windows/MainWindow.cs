@@ -2,7 +2,7 @@ using Dalamud.Interface.Windowing;
 using ImGuiNET;
 using Moonshare_Plugin;
 using System;
-using System.Numerics; // Für Vector4
+using System.Numerics;
 using System.Threading.Tasks;
 
 public class MainWindow : Window, IDisposable
@@ -75,6 +75,13 @@ public class MainWindow : Window, IDisposable
             {
                 _ = plugin.Session.DisconnectAsync();
             }
+        }
+
+        ImGui.Separator();
+        if (ImGui.Button("🙏 Show Credits"))
+        {
+            Plugin.Log.Debug("Credits button clicked in main window.");
+            plugin.ToggleCreditsUI();
         }
     }
 

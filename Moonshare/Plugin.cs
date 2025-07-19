@@ -6,6 +6,7 @@ using Dalamud.Plugin.Services;
 using ImGuiNET;
 using Moonshare_Plugin.Windows;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -33,60 +34,75 @@ public sealed class Plugin : IDalamudPlugin
 
     private ConfigWindow ConfigWindow { get; init; }
     public MainWindow MainWindow { get; init; }
+    public CreditsWindow CreditsWindow { get; init; }
 
     private readonly Action loginHandler;
 
     public Plugin()
     {
-        Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        var stopwatch = Stopwatch.StartNew();
 
-        Session = new UserSessionManager(PluginInterface, Log);
+        Log.Information("Initializing Moonshare Plugin...");
 
-        var goatImagePath = Path.Combine(PluginInterface.AssemblyLocation.Directory?.FullName!, "goat.png");
-
-        ConfigWindow = new ConfigWindow(this);
-        MainWindow = new MainWindow(this, goatImagePath);
-
-        WindowSystem.AddWindow(ConfigWindow);
-        WindowSystem.AddWindow(MainWindow);
-
-        CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
+        try
         {
-            HelpMessage = "Zeigt das Moonshare-Pluginfenster an."
-        });
+            Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+            Session = new UserSessionManager(Log);
 
-        loginHandler = () => _ = OnLoginAsync();
-        ClientState.Login += loginHandler;
+            var goatImagePath = Path.Combine(PluginInterface.AssemblyLocation.Directory?.FullName!, "goat.png");
 
-        PluginInterface.UiBuilder.Draw += DrawUI;
-        PluginInterface.UiBuilder.Draw += DrawMainMenu;
-        PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
-        PluginInterface.UiBuilder.OpenMainUi += ToggleMainUI;
+            ConfigWindow = new ConfigWindow(this);
+            MainWindow = new MainWindow(this, goatImagePath);
+            CreditsWindow = new CreditsWindow();
 
-        Log.Information("=== Moonshare Plugin gestartet ===");
+            WindowSystem.AddWindow(ConfigWindow);
+            WindowSystem.AddWindow(MainWindow);
+            WindowSystem.AddWindow(CreditsWindow);
+
+            CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
+            {
+                HelpMessage = "Opens the Moonshare window."
+            });
+
+            loginHandler = () => _ = OnLoginAsync();
+            ClientState.Login += loginHandler;
+
+            PluginInterface.UiBuilder.Draw += DrawUI;
+            PluginInterface.UiBuilder.Draw += DrawMainMenu;
+            PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
+            PluginInterface.UiBuilder.OpenMainUi += ToggleMainUI;
+
+            stopwatch.Stop();
+            Log.Information("Moonshare Plugin initialized successfully in {Time} ms", stopwatch.ElapsedMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to initialize Moonshare Plugin.");
+            throw;
+        }
     }
 
     private async Task OnLoginAsync()
     {
-        Log.Information("[Moonshare] Versuche Verbindung zum WebSocket-Server...");
+        Log.Information("[Moonshare] Attempting to connect to WebSocket server...");
 
         try
         {
-            Session.InitializeAsync();
+            await Session.InitializeAsync();
 
             if (Session.IsConnected)
             {
-                Log.Information($"[Moonshare] Verbindung erfolgreich. UserID: {Session.LocalUserId}");
+                Log.Information("[Moonshare] Successfully connected. User ID: {UserId}", Session.LocalUserId);
                 MainWindow.IsOpen = true;
             }
             else
             {
-                Log.Warning("[Moonshare] Verbindung fehlgeschlagen. Server erreichbar?");
+                Log.Warning("[Moonshare] Connection failed. Is the server reachable?");
             }
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[Moonshare] Fehler beim Verbindungsaufbau.");
+            Log.Error(ex, "[Moonshare] Error while connecting to WebSocket server.");
         }
 
         ClientState.Login -= loginHandler;
@@ -94,10 +110,13 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        Log.Information("Unloading Moonshare Plugin...");
+
         WindowSystem.RemoveAllWindows();
 
         ConfigWindow.Dispose();
         MainWindow.Dispose();
+        CreditsWindow.Dispose();
 
         CommandManager.RemoveHandler(CommandName);
 
@@ -108,15 +127,19 @@ public sealed class Plugin : IDalamudPlugin
 
         ClientState.Login -= loginHandler;
 
-        Log.Information("=== Moonshare Plugin entladen ===");
+        Log.Information("Moonshare Plugin unloaded.");
     }
 
     private void OnCommand(string command, string args)
     {
+        Log.Debug("Command executed: {Command} {Args}", command, args);
         ToggleMainUI();
     }
 
-    private void DrawUI() => WindowSystem.Draw();
+    private void DrawUI()
+    {
+        WindowSystem.Draw();
+    }
 
     private void DrawMainMenu()
     {
@@ -124,11 +147,23 @@ public sealed class Plugin : IDalamudPlugin
         {
             if (ImGui.BeginMenu("📁 Moonshare"))
             {
-                if (ImGui.MenuItem("📂 Fenster öffnen"))
+                if (ImGui.MenuItem("📂 Open Window"))
+                {
+                    Log.Debug("Main menu: Open Window clicked.");
                     ToggleMainUI();
+                }
 
-                if (ImGui.MenuItem("⚙️ Konfiguration"))
+                if (ImGui.MenuItem("⚙️ Configuration"))
+                {
+                    Log.Debug("Main menu: Configuration clicked.");
                     ToggleConfigUI();
+                }
+
+                if (ImGui.MenuItem("🙏 Credits"))
+                {
+                    Log.Debug("Main menu: Credits clicked.");
+                    ToggleCreditsUI();
+                }
 
                 ImGui.EndMenu();
             }
@@ -136,7 +171,21 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    public void ToggleConfigUI() => ConfigWindow.Toggle();
+    public void ToggleConfigUI()
+    {
+        Log.Debug("Toggling config window.");
+        ConfigWindow.Toggle();
+    }
 
-    public void ToggleMainUI() => MainWindow.Toggle();
+    public void ToggleMainUI()
+    {
+        Log.Debug("Toggling main window.");
+        MainWindow.Toggle();
+    }
+
+    public void ToggleCreditsUI()
+    {
+        Log.Debug("Toggling credits window.");
+        CreditsWindow.Toggle();
+    }
 }
