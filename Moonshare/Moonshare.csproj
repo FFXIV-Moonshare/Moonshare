@@ -11,6 +11,7 @@
   </PropertyGroup>
 
 <ItemGroup>
+  <Content Include="moon3.png" />
   <Content Include="Moonshare.json">
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
   </Content>
