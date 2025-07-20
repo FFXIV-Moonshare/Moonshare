@@ -9,6 +9,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
+using System.Numerics; // Für Vector2 in ImGui.ProgressBar
 
 namespace Moonshare_Plugin;
 
@@ -25,6 +26,8 @@ public sealed class Plugin : IDalamudPlugin
 
     #endregion
 
+    public string ConnectInput { get; set; } = "";
+
     private const string CommandName = "/moonshare";
 
     public Configuration Configuration { get; init; }
@@ -35,6 +38,9 @@ public sealed class Plugin : IDalamudPlugin
     private ConfigWindow ConfigWindow { get; init; }
     public MainWindow MainWindow { get; init; }
     public CreditsWindow CreditsWindow { get; init; }
+
+    public int uploadProgress = 0;
+    public bool isUploading = false;
 
     private readonly Action loginHandler;
 
@@ -49,10 +55,28 @@ public sealed class Plugin : IDalamudPlugin
             Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             Session = new UserSessionManager(Log);
 
+            // Upload-Fortschritts-Event abonnieren
+            Session.OnUploadProgress += (percent) =>
+            {
+                uploadProgress = percent;
+                isUploading = percent < 100;
+                PluginInterface.UiBuilder.Draw += () =>
+                {
+                    if (isUploading)
+                    {
+                        ImGui.Text($"Uploading: {uploadProgress}%");
+                        ImGui.ProgressBar(uploadProgress / 100f, new Vector2(-1, 0));
+                    }
+                };
+
+
+            };
+
+
             var goatImagePath = Path.Combine(PluginInterface.AssemblyLocation.Directory?.FullName!, "goat.png");
 
             ConfigWindow = new ConfigWindow(this);
-            MainWindow = new MainWindow(this, goatImagePath);
+            MainWindow = new MainWindow(this);
             CreditsWindow = new CreditsWindow();
 
             WindowSystem.AddWindow(ConfigWindow);
@@ -188,4 +212,14 @@ public sealed class Plugin : IDalamudPlugin
         Log.Debug("Toggling credits window.");
         CreditsWindow.Toggle();
     }
+
+    // ** Beispiel: Upload-Fortschritt im MainWindow anzeigen **
+    // Falls du MainWindow in einem anderen File hast, 
+    // dort kannst du diesen Code beim Draw einbauen:
+    //
+    // if (plugin.isUploading)
+    // {
+    //     ImGui.Text($"Uploading: {plugin.uploadProgress}%");
+    //     ImGui.ProgressBar(plugin.uploadProgress / 100f, new Vector2(-1, 0));
+    // }
 }

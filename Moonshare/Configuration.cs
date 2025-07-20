@@ -13,7 +13,7 @@ namespace Moonshare_Plugin
         public bool SomePropertyToBeSavedAndWithADefault { get; set; } = true;
 
         // Dummy Settings, die du später für dein Moonshare Plugin nutzen kannst:
-        public string ServerAddress { get; set; } = "ws://localhost:5000/ws";
+        public string ServerAddress { get; set; } = "ws://62.68.75.23:5000/ws";
         public int ReconnectDelaySeconds { get; set; } = 10;
         public bool EnableAutoReconnect { get; set; } = true;
         public int MaxConcurrentTransfers { get; set; } = 3;
