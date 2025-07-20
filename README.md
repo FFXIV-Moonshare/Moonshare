@@ -1,6 +1,6 @@
 🌙 Moonshare – WIP ALPHA
 
-Moonshare Banner
+
 A Dalamud plugin enabling peer-to-peer file sharing and session linking in FINAL FANTASY XIV.
 🔍 Overview
 
