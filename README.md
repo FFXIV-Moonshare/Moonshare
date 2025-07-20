@@ -1,85 +1,79 @@
-# Moonshare WIP ALPHA!
+🌙 Moonshare – WIP ALPHA
 
-![Moonshare Logo oder Screenshot](https://cdn.discordapp.com/attachments/1323720626996773036/1395799558453202984/moon.png?ex=687c6be3&is=687b1a63&hm=7d4ba2807ae597865f73da9613f7f25a09e9c082c434bcbedf25de368fb4f8e1&)  
-*Ein Plugin für Dalamud, das Dateitransfer und Verbindungsfunktionen für FINAL FANTASY XIV ermöglicht.*
 
----
+A Dalamud plugin enabling peer-to-peer file sharing and session linking in FINAL FANTASY XIV.
+🔍 Overview
 
-## Übersicht
+Moonshare is an experimental Dalamud plugin for FINAL FANTASY XIV that allows players to connect to each other using unique user IDs and share files securely. The plugin provides a clean, user-friendly interface to manage sessions and transfers, including:
 
-**Moonshare** ist ein Dalamud-Plugin für FINAL FANTASY XIV, das es Spielern ermöglicht, sich untereinander mit eindeutigen UserIDs zu verbinden und Dateien sicher auszutauschen. Es bietet eine einfache Benutzeroberfläche zur Verwaltung der Verbindung und des Transfers, inklusive:
+    A unique local UserID to identify yourself
 
-- Eindeutige lokale UserID zur Identifikation
-- Verbindungsaufbau zu anderen Spielern via deren UserID
-- Statusanzeige der Verbindung und Möglichkeit zur Trennung
-- Vorbereitung und Verwaltung von Dateiübertragungen
+    Direct connection to other players via their UserID
 
----
+    Live connection status and easy disconnect options
 
-## Features
+    Basic file transfer management (WIP)
 
-- Intuitive grafische Oberfläche mit ImGui-Integration
-- Einfacher Slash-Befehl zur schnellen Anzeige des Plugins: `/moonshare`
-- Speicherung der Konfiguration automatisch im Plugin-Ordner
-- Saubere Verwaltung von Verbindungen zwischen Spielern
-- Erweiterbar und quelloffen für individuelle Anpassungen
+✨ Features
 
----
+    Intuitive graphical UI built with ImGui
 
-## Installation
+    Quick access via the /moonshare slash command
 
-1. Stelle sicher, dass du FINAL FANTASY XIV mit Dalamud und XIVLauncher installiert und mindestens einmal gestartet hast.  
-2. Lade die aktuelle Version des Moonshare Plugins von [deinem Release-Archiv] herunter.  
-3. Füge die Plugin-DLL in Dalamuds Entwicklungs-Plugin-Verzeichnis ein (über `/xlsettings` → Experimental → Dev Plugin Locations).  
-4. Aktiviere das Plugin über `/xlplugins` → Dev Tools → Installed Dev Plugins → Moonshare.  
-5. Nutze `/moonshare`, um das Pluginfenster zu öffnen.
+    Automatic configuration saving to your plugin folder
 
----
+    Clean session management between players
 
-## Nutzung
+    Fully open source and extensible for custom use cases
 
-- Öffne das Pluginfenster mit `/moonshare`.  
-- Deine lokale UserID wird oben angezeigt — teile sie mit anderen Spielern, um eine Verbindung aufzubauen.  
-- Gib die UserID eines anderen Spielers in das Eingabefeld ein und klicke „Verbinden“.  
-- Verbundene Spieler können Dateien austauschen (je nach Plugin-Implementierung).  
-- Über den Button „Verbindung trennen“ kannst du die Verbindung jederzeit beenden.
+🔧 Installation
 
----
+    Make sure FINAL FANTASY XIV is set up with XIVLauncher and Dalamud.
 
-## Entwicklung & Anpassung
+    Download the latest Moonshare release from [your release archive or GitHub].
 
-Das Plugin ist in C# mit Dalamud API und ImGuiNET geschrieben. Der Quellcode ist modular aufgebaut:
+    Place the plugin .dll into the Development Plugins directory (/xlsettings → Experimental → Dev Plugin Locations).
 
-- **Plugin.cs**: Hauptklasse mit Lifecycle und Eventhandling  
-- **UserSessionManager.cs**: Verwaltung von UserIDs, Verbindungen und Transfers  
-- **Windows/**: ImGui UI-Fenster, z.B. MainWindow.cs für die GUI  
+    Enable the plugin via /xlplugins → Dev Tools → Installed Dev Plugins → Moonshare.
 
-Die Konfigurationsdatei wird automatisch im Pluginordner gespeichert und geladen (`Moonshare/Moonshare.json`).
+    Open the plugin with /moonshare.
 
----
+🚀 How to Use
 
-## Voraussetzungen
+    Run /moonshare to open the plugin window.
 
-- XIVLauncher & FINAL FANTASY XIV mit aktiviertem Dalamud-Framework  
-- .NET 8 SDK für Entwicklung (nicht zwingend zum Nutzen nötig)  
-- Internetverbindung zum Austausch von Dateien (je nach Use-Case)  
+    Your personal UserID is displayed at the top — share it to let others connect to you.
 
----
+    Enter another player’s UserID and press Connect to establish a session.
 
-## Support & Mitmachen
+    Once connected, you’ll be able to exchange files (depending on plugin implementation).
 
-Bei Fragen, Fehlern oder Verbesserungsvorschlägen besuche unseren [Discord-Server](https://discord.gg/holdshift) oder öffne Issues auf GitHub.
+    Use Disconnect at any time to end the session.
 
----
+🛠 Development & Customization
 
-## Lizenz
+Moonshare is written in C# using the Dalamud API and ImGuiNET. The codebase is modular and cleanly structured:
 
-Moonshare ist unter der MIT-Lizenz lizenziert. Siehe LICENSE-Datei im Repository.
+    Plugin.cs: Main entry point, lifecycle, and hooks
 
----
+    UserSessionManager.cs: Handles UserIDs, sessions, and transfer logic
 
-> **Hinweis:** Dieses Plugin ist kein offizielles Square Enix Produkt und steht in keiner Verbindung mit den Entwicklern von FINAL FANTASY XIV.
+    Windows/: Contains the ImGui-based UI (e.g., MainWindow.cs)
 
----
+The plugin automatically creates and loads a config file under Moonshare/Moonshare.json.
+📦 Requirements
 
-### Danke fürs Nutzen und viel Spaß beim sicheren Teilen mit Moonshare! 🎉
+    FINAL FANTASY XIV with Dalamud via XIVLauncher
+
+    (Optional for devs) .NET 8 SDK for plugin development
+
+    Internet access for file transfers
+
+💬 Support & Contribution
+
+Found a bug? Have ideas or suggestions? Join us on the Moonshare Discord server or open an issue on GitHub. Contributions are always welcome!
+📄 License
+
+Moonshare is licensed under the MIT License. See the LICENSE file in the repository for full details.
+
+    ⚠️ Disclaimer: This plugin is not affiliated with or endorsed by Square Enix. Use at your own discretion.
