@@ -20,6 +20,9 @@ public class MainWindow : Window, IDisposable
     private bool showLogWindow = false;
     private Stopwatch uploadStopwatch = new();
     private DateTime lastUserListUpdate = DateTime.MinValue;
+    private string? currentInstanceInfo;
+
+    private string? insta;
 
     private List<string> availableFiles = new();
     private int selectedFileIndex = -1;
@@ -32,6 +35,7 @@ public class MainWindow : Window, IDisposable
     private string connectInput = "";
     private string userFilterInput = "";
 
+    
 
     private List<string> logMessages = new();
 
@@ -63,6 +67,12 @@ public class MainWindow : Window, IDisposable
                 uploadStopwatch.Stop();
                 AddLog($"Upload finished in {uploadStopwatch.Elapsed.TotalSeconds:F1}s.");
             }
+        };
+
+        plugin.Session.OnInstanceInfoReceived += msg =>
+        {
+            currentInstanceInfo = msg;
+            AddLog($"ℹ️ {msg}");
         };
     }
 
@@ -130,144 +140,168 @@ public class MainWindow : Window, IDisposable
     private void DrawHeader()
     {
         ImGui.TextColored(new Vector4(0.2f, 0.7f, 0.9f, 1f), "Moonshare - Connecting FFXIV Players");
+
+        if (!string.IsNullOrEmpty(currentInstanceInfo))
+        {
+            ImGui.TextColored(new Vector4(0.4f, 0.8f, 1f, 1f), $"ℹ️ {currentInstanceInfo}");
+        }
+
         ImGui.Separator();
         ImGui.Spacing();
     }
 
-    private void DrawConnectionPanel()
+  
+  private void DrawConnectionPanel()
+{
+    ImGui.BeginChild("ConnectionPanel", new Vector2(0, 0), true);
+
+    ImGui.TextColored(new Vector4(0.4f, 0.9f, 0.6f, 1f), "Connection Details");
+    ImGui.Spacing();
+
+    var connected = plugin.Session.IsConnected;
+
+    ImGui.BeginTable("ConnDetailsTable", 2, ImGuiTableFlags.NoHostExtendX | ImGuiTableFlags.BordersInnerV);
+
+    ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 140);
+    ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+
+    // User ID
+    ImGui.TableNextRow();
+    ImGui.TableSetColumnIndex(0);
+    ImGui.TextUnformatted("User ID:");
+    ImGui.TableSetColumnIndex(1);
+    ImGui.TextColored(new Vector4(1f, 1f, 1f, 1f), plugin.Session.LocalUserId);
+
+    // Session Token
+    ImGui.TableNextRow();
+    ImGui.TableSetColumnIndex(0);
+    ImGui.TextUnformatted("Session Token:");
+    ImGui.TableSetColumnIndex(1);
+    string token = plugin.Session.SessionToken ?? "(not available)";
+    string tokenShort = token.Length > 12 ? token[..12] + "..." : token;
+    ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.8f, 1f), tokenShort);
+    if (ImGui.IsItemHovered())
+        ImGui.SetTooltip(token);
+
+    // Instance Info (ohne Icon)
+    ImGui.TableNextRow();
+    ImGui.TableSetColumnIndex(0);
+    ImGui.TextColored(new Vector4(0.3f, 0.7f, 0.9f, 1f), "Instance:");
+    ImGui.TableSetColumnIndex(1);
+    if (!string.IsNullOrEmpty(currentInstanceInfo))
     {
-        ImGui.BeginChild("ConnectionPanel", new Vector2(0, 0), true);
+        ImGui.TextColored(new Vector4(0.6f, 0.85f, 1f, 1f), currentInstanceInfo);
+    }
+    else
+    {
+        ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), "(not received yet)");
+    }
 
-        ImGui.TextColored(new Vector4(0.4f, 0.9f, 0.6f, 1f), "Connection Details");
-        ImGui.Spacing();
+    ImGui.Spacing();
 
-        var connected = plugin.Session.IsConnected;
+    // WebSocket State
+    ImGui.TableNextRow();
+    ImGui.TableSetColumnIndex(0);
+    ImGui.TextUnformatted("WebSocket State:");
+    ImGui.TableSetColumnIndex(1);
+    ImGui.TextColored(connected ? new Vector4(0f, 1f, 0f, 1f) : new Vector4(1f, 0f, 0f, 1f),
+        connected ? "Connected" : "Disconnected");
 
-        ImGui.BeginTable("ConnDetailsTable", 2, ImGuiTableFlags.NoHostExtendX | ImGuiTableFlags.BordersInnerV);
+    // Connected as
+    ImGui.TableNextRow();
+    ImGui.TableSetColumnIndex(0);
+    ImGui.TextUnformatted("Connected as:");
+    ImGui.TableSetColumnIndex(1);
+    string connectedTo = plugin.Session.ConnectedToUserId ?? "(none)";
+    ImGui.TextColored(new Vector4(1f, 1f, 0.4f, 1f), connectedTo);
 
-        ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 140);
-        ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+    ImGui.EndTable();
 
-        ImGui.TableNextRow();
-        ImGui.TableSetColumnIndex(0);
-        ImGui.Text("User ID:");
-        ImGui.TableSetColumnIndex(1);
-        ImGui.TextColored(new Vector4(1f, 1f, 1f, 1f), plugin.Session.LocalUserId);
+    ImGui.Spacing();
 
-        ImGui.TableNextRow();
-        ImGui.TableSetColumnIndex(0);
-        ImGui.Text("Session Token:");
-        ImGui.TableSetColumnIndex(1);
-        string token = plugin.Session.SessionToken ?? "(not available)";
-        string tokenShort = token.Length > 12 ? token[..12] + "..." : token;
-        ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.8f, 1f), tokenShort);
-        if (ImGui.IsItemHovered()) ImGui.SetTooltip(token);
-
-        ImGui.TableNextRow();
-        ImGui.TableSetColumnIndex(0);
-        ImGui.Text("PlayerServer URL:");
-        ImGui.TableSetColumnIndex(1);
-        ImGui.TextWrapped(plugin.Session.ConnectedPlayerServerUrl ?? "(not connected)");
-
-        ImGui.TableNextRow();
-        ImGui.TableSetColumnIndex(0);
-        ImGui.Text("WebSocket State:");
-        ImGui.TableSetColumnIndex(1);
-        ImGui.TextColored(connected ? new Vector4(0f, 1f, 0f, 1f) : new Vector4(1f, 0f, 0f, 1f),
-            connected ? "Connected" : "Disconnected");
-
-        ImGui.TableNextRow();
-        ImGui.TableSetColumnIndex(0);
-        ImGui.Text("Connected as:");
-        ImGui.TableSetColumnIndex(1);
-        string connectedTo = plugin.Session.ConnectedToUserId ?? "(none)";
-        ImGui.TextColored(new Vector4(1f, 1f, 0.4f, 1f), connectedTo);
-
-        ImGui.EndTable();
+    // --- Connect Input + Button ---
+    if (!connected)
+    {
+        ImGui.Text("Enter UserID to connect:");
+        ImGui.SetNextItemWidth(-1);
+        ImGui.InputText("##connectInput", ref connectInput, 64);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Enter the UserID you want to connect to");
 
         ImGui.Spacing();
 
-        if (!connected)
+        if (isConnecting)
         {
-            ImGui.Text("Enter UserID to connect:");
-            ImGui.SetNextItemWidth(-1);
-            ImGui.InputText("##connectInput", ref connectInput, 64);
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Enter the UserID you want to connect to");
-
-            ImGui.Spacing();
-
-            if (isConnecting)
-            {
-                ImGui.BeginDisabled();
-                ImGui.Button("Connecting...");
-                ImGui.EndDisabled();
-            }
-            else
-            {
-                bool canConnect = !string.IsNullOrWhiteSpace(connectInput);
-                if (!canConnect)
-                    ImGui.BeginDisabled();
-
-                if (ImGui.Button("Connect"))
-                {
-                    _ = ConnectAsync(connectInput.Trim());
-                }
-
-                if (!canConnect)
-                    ImGui.EndDisabled();
-            }
+            ImGui.BeginDisabled();
+            ImGui.Button("Connecting...");
+            ImGui.EndDisabled();
         }
         else
         {
-            if (ImGui.Button("Disconnect"))
-            {
-                _ = plugin.Session.DisconnectAsync();
-                selectedUserIndex = -1;
-            }
+            bool canConnect = !string.IsNullOrWhiteSpace(connectInput);
+            if (!canConnect)
+                ImGui.BeginDisabled();
+
+            if (ImGui.Button("Connect"))
+                _ = ConnectAsync(connectInput.Trim());
+
+            if (!canConnect)
+                ImGui.EndDisabled();
         }
-
-        ImGui.Spacing();
-        ImGui.Separator();
-
-        ImGui.TextColored(new Vector4(0.4f, 0.9f, 0.6f, 1f), "Available Users");
-        ImGui.Text($"Online: {plugin.Session.ConnectedUsers.Count}");
-
-        ImGui.SetNextItemWidth(-1);
-        ImGui.InputText("Search users...", ref userFilterInput, 64);
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Filter users by name or ID");
-
-        ImGui.BeginChild("UserListChild", new Vector2(0, 300), true);
-
-        var filteredUsers = plugin.Session.ConnectedUsers
-            .Where(kvp => kvp.Value.Contains(userFilterInput, StringComparison.OrdinalIgnoreCase) || kvp.Key.Contains(userFilterInput))
-            .OrderBy(kvp => kvp.Value)
-            .ToList();
-
-        for (int i = 0; i < filteredUsers.Count; i++)
-        {
-            var kvp = filteredUsers[i];
-            bool isSelected = (i == selectedUserIndex);
-            string displayName = $"{kvp.Value} ({kvp.Key})";
-
-            if (ImGui.Selectable(displayName, isSelected))
-                selectedUserIndex = i;
-
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip($"UserId: {kvp.Key}");
-
-            if (ImGui.IsItemClicked() && ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
-            {
-                _ = plugin.Session.ConnectToAsync(kvp.Key);
-                AddLog($"Connection request sent to {kvp.Key}");
-            }
-        }
-
-        ImGui.EndChild();
-
-        ImGui.EndChild();
     }
+    else
+    {
+        if (ImGui.Button("Disconnect"))
+        {
+            _ = plugin.Session.DisconnectAsync();
+            selectedUserIndex = -1;
+        }
+    }
+
+    ImGui.Spacing();
+    ImGui.Separator();
+
+    // --- User List mit Filter ---
+    ImGui.TextColored(new Vector4(0.4f, 0.9f, 0.6f, 1f), "Available Users");
+    ImGui.Text($"Online: {plugin.Session.ConnectedUsers.Count}");
+
+    ImGui.SetNextItemWidth(-1);
+    ImGui.InputText("Search users...", ref userFilterInput, 64);
+    if (ImGui.IsItemHovered())
+        ImGui.SetTooltip("Filter users by name or ID");
+
+    ImGui.BeginChild("UserListChild", new Vector2(0, 300), true);
+
+    var filteredUsers = plugin.Session.ConnectedUsers
+        .Where(kvp => kvp.Value.Contains(userFilterInput, StringComparison.OrdinalIgnoreCase) || kvp.Key.Contains(userFilterInput))
+        .OrderBy(kvp => kvp.Value)
+        .ToList();
+
+    for (int i = 0; i < filteredUsers.Count; i++)
+    {
+        var kvp = filteredUsers[i];
+        bool isSelected = (i == selectedUserIndex);
+        string displayName = $"{kvp.Value} ({kvp.Key})";
+
+        if (ImGui.Selectable(displayName, isSelected))
+            selectedUserIndex = i;
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip($"UserId: {kvp.Key}");
+
+        if (ImGui.IsItemClicked() && ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
+        {
+            _ = plugin.Session.ConnectToAsync(kvp.Key);
+            AddLog($"Connection request sent to {kvp.Key}");
+        }
+    }
+
+    ImGui.EndChild();
+
+    ImGui.EndChild();
+}
+
+
 
     private void DrawFilePanel()
     {

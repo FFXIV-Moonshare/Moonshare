@@ -27,7 +27,9 @@ namespace Moonshare_Plugin
 
         public Dictionary<string, string> ConnectedUsers { get; private set; } = new();
         public string? ConnectedPlayerServerUrl { get; private set; }
+        public event Action<string>? OnInstanceInfoReceived;
 
+        public string? ConnectedInstanceName { get; private set; }
         public event Action? OnUserListChanged;
         public event Action<string?, bool>? OnConnectionStatusChanged;
 
@@ -263,6 +265,15 @@ namespace Moonshare_Plugin
 
                             switch (type)
                             {
+                                case "connection_info":
+                                    var instanceName = doc.RootElement.GetProperty("message").GetString();
+                                    ConnectedInstanceName = instanceName;
+                                    log.Information($"🔗 Connected through instance: {instanceName}");
+
+                                    OnInstanceInfoReceived?.Invoke(instanceName); // <-- hier Event feuern
+                                    break;
+
+
                                 case "user_list_update":
                                     UpdateUserList(doc.RootElement.GetProperty("users"));
                                     break;
@@ -404,9 +415,17 @@ namespace Moonshare_Plugin
                 await playerSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client disconnect", CancellationToken.None);
                 log.Information("✅ WebSocket closed.");
 
-                // Status zurücksetzen
+                // Status komplett zurücksetzen
                 ConnectedToUserId = null;
+                SessionToken = null;
+                ConnectedUsers.Clear();
+                ConnectedInstanceName = null;
+                ConnectedPlayerServerUrl = null;
+
+                // Event feuern, um UI zu informieren
                 OnConnectionStatusChanged?.Invoke(null, false);
+                OnUserListChanged?.Invoke();
+                OnInstanceInfoReceived?.Invoke(null);
 
                 // Socket und CancellationTokenSource bereinigen
                 playerSocket.Dispose();

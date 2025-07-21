@@ -75,7 +75,7 @@ public sealed class Plugin : IDalamudPlugin
 
             PluginInterface.UiBuilder.Draw += DrawUI;
             PluginInterface.UiBuilder.Draw += DrawMainMenu;
-            PluginInterface.UiBuilder.BuildInfoBar += DrawInfoBarButton;
+            //PluginInterface.UiBuilder.BuildInfoBar += DrawInfoBarButton;
             PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
             PluginInterface.UiBuilder.OpenMainUi += ToggleMainUI;
 
@@ -128,7 +128,7 @@ public sealed class Plugin : IDalamudPlugin
 
         PluginInterface.UiBuilder.Draw -= DrawUI;
         PluginInterface.UiBuilder.Draw -= DrawMainMenu;
-        PluginInterface.UiBuilder -= DrawInfoBarButton;
+        //PluginInterface.UiBuilder -= DrawInfoBarButton;
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUI;
         PluginInterface.UiBuilder.OpenMainUi -= ToggleMainUI;
 
