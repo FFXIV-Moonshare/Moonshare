@@ -1,4 +1,3 @@
-using Dalamud.Game.ClientState.Fates;
 using Dalamud.Logging;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -27,83 +26,97 @@ namespace Moonshare_Plugin
         public bool IsConnected => playerSocket?.State == WebSocketState.Open;
 
         public Dictionary<string, string> ConnectedUsers { get; private set; } = new();
+        public string? ConnectedPlayerServerUrl { get; private set; }
 
         public event Action? OnUserListChanged;
         public event Action<string?, bool>? OnConnectionStatusChanged;
 
-        // NEU: Upload-Fortschritt-Event (0..100)
+        // Upload-Fortschritt-Event (0..100)
         public event Action<int>? OnUploadProgress;
 
         private const int ChunkSize = 32 * 1024; // 32 KB
 
-        // NEU: TaskCompletionSource zum Warten auf Server-ACK ("file_send_begin" Empfang)
         private TaskCompletionSource<bool>? fileSendReadyTcs;
 
         public UserSessionManager(IPluginLog log)
         {
             this.log = log;
-            LocalUserId = Guid.NewGuid().ToString(); // eindeutige UserID
+            LocalUserId = Guid.NewGuid().ToString();
         }
 
-        private void UpdateUserList(JsonElement usersElement)
+        // Sharding-Logik: Ermittelt PlayerServer-URL anhand der UserId
+        private string GetPlayerServerUrl()
         {
-            var newList = new Dictionary<string, string>();
-
-            foreach (var userElem in usersElement.EnumerateArray())
-            {
-                string id = userElem.GetProperty("userId").GetString() ?? "";
-                string? name = userElem.TryGetProperty("userName", out var nameElem) ? nameElem.GetString() : null;
-                if (!string.IsNullOrEmpty(id) && id != LocalUserId)
-                    newList[id] = name ?? id;
-            }
-
-            ConnectedUsers = newList;
-            OnUserListChanged?.Invoke();
-            log.Information($"📋 User list updated, {ConnectedUsers.Count} users available.");
+            int shardCount = 3; // Anzahl PlayerServer-Instanzen, ggf. anpassen
+            int shardIndex = GetStableHash(LocalUserId) % shardCount;
+            int port = 5000 + shardIndex;
+            return $"ws://62.68.75.23:{port}/player";
         }
 
-        public async Task InitializeAsync()
+       public async Task InitializeAsync(int maxRetries = 5, int delayMs = 2000)
+{
+    int attempt = 0;
+
+    while (attempt < maxRetries)
+    {
+        attempt++;
+
+        try
         {
-            try
+            log.Information($"🔑 Using UserId: {LocalUserId}");
+
+            var authToken = await GetAuthTokenFromHttpAsync(LocalUserId);
+            if (authToken == null)
             {
-                log.Information($"🔑 Using generated UserId: {LocalUserId}");
-
-                var authToken = await GetAuthTokenFromHttpAsync(LocalUserId);
-                if (authToken == null)
-                {
-                    log.Error("❌ Authentication failed: no token received.");
-                    return;
-                }
-                SessionToken = authToken;
-
-                log.Information($"✅ Authenticated as {LocalUserId} with token: {authToken}");
-
-                cts?.Cancel();
-                cts = new CancellationTokenSource();
-                playerSocket?.Dispose();
-                playerSocket = new ClientWebSocket();
-
-                var playerUri = new Uri("ws://62.68.75.23:5002/player");
-                log.Information("🌐 Connecting to PlayerServer...");
-                await playerSocket.ConnectAsync(playerUri, cts.Token);
-                log.Information("✅ Connected to PlayerServer.");
-
-                var authMsg = JsonSerializer.Serialize(new
-                {
-                    type = "session_auth",
-                    userId = LocalUserId,
-                    token = SessionToken
-                });
-                var authBytes = Encoding.UTF8.GetBytes(authMsg);
-                await playerSocket.SendAsync(authBytes, WebSocketMessageType.Text, true, cts.Token);
-
-                _ = Task.Run(() => ReceiveLoop(cts.Token), cts.Token);
+                log.Error("❌ Authentication failed: no token received.");
+                return;
             }
-            catch (Exception ex)
+            SessionToken = authToken;
+
+            log.Information($"✅ Authenticated as {LocalUserId} with token: {authToken}");
+
+            cts?.Cancel();
+            cts = new CancellationTokenSource();
+
+            playerSocket?.Dispose();
+            playerSocket = new ClientWebSocket();
+
+                    var playerUrl = GetPlayerServerUrl();
+                    ConnectedPlayerServerUrl = playerUrl; // merken
+
+                    var playerUri = new Uri(playerUrl);
+                    log.Information($"🌐 Connecting to PlayerServer at {playerUri}... (Attempt {attempt}/{maxRetries})");
+                    await playerSocket.ConnectAsync(playerUri, cts.Token);
+                    log.Information("✅ Connected to PlayerServer.");
+
+                    var authMsg = JsonSerializer.Serialize(new
             {
-                log.Error(ex, "❌ Error during InitializeAsync");
+                type = "session_auth",
+                userId = LocalUserId,
+                token = SessionToken
+            });
+            var authBytes = Encoding.UTF8.GetBytes(authMsg);
+            await playerSocket.SendAsync(authBytes, WebSocketMessageType.Text, true, cts.Token);
+
+            _ = Task.Run(() => ReceiveLoop(cts.Token), cts.Token);
+
+            return; // Erfolg, raus aus der Retry-Schleife
+        }
+        catch (Exception ex)
+        {
+            log.Warning(ex, $"⚠️ Connection attempt {attempt} failed.");
+            if (attempt < maxRetries)
+            {
+                log.Information($"⏳ Waiting {delayMs}ms before retry...");
+                await Task.Delay(delayMs);
+            }
+            else
+            {
+                log.Error("❌ All connection attempts failed.");
             }
         }
+    }
+}
 
         private async Task<string?> GetAuthTokenFromHttpAsync(string userId)
         {
@@ -137,7 +150,6 @@ namespace Moonshare_Plugin
 
         private async Task HandleServerMessageAsync(string message)
         {
-            // WICHTIG: "file_receive_ready" kleingeschrieben, so wie Server es sendet!
             if (message == "file_receive_ready")
             {
                 fileSendReadyTcs?.TrySetResult(true);
@@ -175,7 +187,6 @@ namespace Moonshare_Plugin
                 await playerSocket.SendAsync(headerBytes, WebSocketMessageType.Text, true, CancellationToken.None);
                 log.Information("📤 Sent file header, waiting for server ready signal...");
 
-                // Warten auf serverseitiges "file_receive_ready"
                 var completedTask = await Task.WhenAny(fileSendReadyTcs.Task, Task.Delay(10000));
                 if (completedTask != fileSendReadyTcs.Task || !fileSendReadyTcs.Task.Result)
                 {
@@ -310,7 +321,6 @@ namespace Moonshare_Plugin
                         }
                         catch (JsonException)
                         {
-                            // Falls Nachricht kein JSON ist, ggf. einfache String-Nachricht vom Server
                             await HandleServerMessageAsync(msg);
                         }
                     }
@@ -324,6 +334,23 @@ namespace Moonshare_Plugin
             {
                 log.Error(ex, "❌ Error in ReceiveLoop");
             }
+        }
+
+        private void UpdateUserList(JsonElement usersElement)
+        {
+            var newList = new Dictionary<string, string>();
+
+            foreach (var userElem in usersElement.EnumerateArray())
+            {
+                string id = userElem.GetProperty("userId").GetString() ?? "";
+                string? name = userElem.TryGetProperty("userName", out var nameElem) ? nameElem.GetString() : null;
+                if (!string.IsNullOrEmpty(id) && id != LocalUserId)
+                    newList[id] = name ?? id;
+            }
+
+            ConnectedUsers = newList;
+            OnUserListChanged?.Invoke();
+            log.Information($"📋 User list updated, {ConnectedUsers.Count} users available.");
         }
 
         public async Task ConnectToAsync(string otherUserId)
@@ -369,14 +396,28 @@ namespace Moonshare_Plugin
 
             try
             {
+                // Sende Disconnect Nachricht an Server
                 await playerSocket.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
+                log.Information("⛔️ Sent disconnect message to server.");
+
+                // Schließe WebSocket sauber (Normal Closure)
+                await playerSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client disconnect", CancellationToken.None);
+                log.Information("✅ WebSocket closed.");
+
+                // Status zurücksetzen
                 ConnectedToUserId = null;
-                log.Information("⛔️ Disconnected.");
                 OnConnectionStatusChanged?.Invoke(null, false);
+
+                // Socket und CancellationTokenSource bereinigen
+                playerSocket.Dispose();
+                playerSocket = null;
+
+                cts?.Cancel();
+                cts = null;
             }
             catch (Exception ex)
             {
-                log.Error(ex, "❌ Error sending disconnect message");
+                log.Error(ex, "❌ Error during disconnect.");
             }
         }
 
@@ -384,6 +425,17 @@ namespace Moonshare_Plugin
         {
             cts?.Cancel();
             playerSocket?.Dispose();
+        }
+
+        private static int GetStableHash(string str)
+        {
+            unchecked
+            {
+                int hash = 23;
+                foreach (var c in str)
+                    hash = hash * 31 + c;
+                return Math.Abs(hash);
+            }
         }
     }
 }

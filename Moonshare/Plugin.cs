@@ -1,4 +1,6 @@
 using Dalamud.Game.Command;
+using Dalamud.Interface;
+using Dalamud.Interface.Components;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
@@ -7,26 +9,20 @@ using ImGuiNET;
 using Moonshare_Plugin.Windows;
 using System;
 using System.Diagnostics;
-using System.IO;
+using System.Numerics;
 using System.Threading.Tasks;
-using System.Numerics; // Für Vector2 in ImGui.ProgressBar
 
 namespace Moonshare_Plugin;
 
 public sealed class Plugin : IDalamudPlugin
 {
     #region Dalamud Services
-
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
-    [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
     [PluginService] internal static IClientState ClientState { get; private set; } = null!;
-    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
-
+    [PluginService] public static ITextureProvider TextureProvider { get; private set; } = null!;
     #endregion
-
-    public string ConnectInput { get; set; } = "";
 
     private const string CommandName = "/moonshare";
 
@@ -55,29 +51,15 @@ public sealed class Plugin : IDalamudPlugin
             Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             Session = new UserSessionManager(Log);
 
-            // Upload-Fortschritts-Event abonnieren
-            Session.OnUploadProgress += (percent) =>
+            Session.OnUploadProgress += percent =>
             {
                 uploadProgress = percent;
                 isUploading = percent < 100;
-                PluginInterface.UiBuilder.Draw += () =>
-                {
-                    if (isUploading)
-                    {
-                        ImGui.Text($"Uploading: {uploadProgress}%");
-                        ImGui.ProgressBar(uploadProgress / 100f, new Vector2(-1, 0));
-                    }
-                };
-
-
             };
-
-
-            var goatImagePath = Path.Combine(PluginInterface.AssemblyLocation.Directory?.FullName!, "goat.png");
 
             ConfigWindow = new ConfigWindow(this);
             MainWindow = new MainWindow(this);
-            CreditsWindow = new CreditsWindow();
+            CreditsWindow = new CreditsWindow(TextureProvider, Log);
 
             WindowSystem.AddWindow(ConfigWindow);
             WindowSystem.AddWindow(MainWindow);
@@ -93,6 +75,7 @@ public sealed class Plugin : IDalamudPlugin
 
             PluginInterface.UiBuilder.Draw += DrawUI;
             PluginInterface.UiBuilder.Draw += DrawMainMenu;
+            PluginInterface.UiBuilder.BuildInfoBar += DrawInfoBarButton;
             PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
             PluginInterface.UiBuilder.OpenMainUi += ToggleMainUI;
 
@@ -140,12 +123,12 @@ public sealed class Plugin : IDalamudPlugin
 
         ConfigWindow.Dispose();
         MainWindow.Dispose();
-        CreditsWindow.Dispose();
 
         CommandManager.RemoveHandler(CommandName);
 
         PluginInterface.UiBuilder.Draw -= DrawUI;
         PluginInterface.UiBuilder.Draw -= DrawMainMenu;
+        PluginInterface.UiBuilder -= DrawInfoBarButton;
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUI;
         PluginInterface.UiBuilder.OpenMainUi -= ToggleMainUI;
 
@@ -163,6 +146,17 @@ public sealed class Plugin : IDalamudPlugin
     private void DrawUI()
     {
         WindowSystem.Draw();
+
+        if (isUploading)
+        {
+            ImGui.SetNextWindowSize(new Vector2(300, 50), ImGuiCond.Once);
+            ImGui.Begin("Uploading...", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.AlwaysAutoResize);
+
+            ImGui.Text($"Uploading: {uploadProgress}%");
+            ImGui.ProgressBar(uploadProgress / 100f, new Vector2(-1, 0));
+
+            ImGui.End();
+        }
     }
 
     private void DrawMainMenu()
@@ -195,31 +189,22 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    public void ToggleConfigUI()
+    private void DrawInfoBarButton()
     {
-        Log.Debug("Toggling config window.");
-        ConfigWindow.Toggle();
+        // Draw moon icon in the server info bar
+        if (ImGuiComponents.IconButton(FontAwesomeIcon.Moon))
+        {
+            Log.Debug("InfoBar: Moonshare button clicked.");
+            ToggleMainUI();
+        }
+
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip("Open Moonshare");
+        }
     }
 
-    public void ToggleMainUI()
-    {
-        Log.Debug("Toggling main window.");
-        MainWindow.Toggle();
-    }
-
-    public void ToggleCreditsUI()
-    {
-        Log.Debug("Toggling credits window.");
-        CreditsWindow.Toggle();
-    }
-
-    // ** Beispiel: Upload-Fortschritt im MainWindow anzeigen **
-    // Falls du MainWindow in einem anderen File hast, 
-    // dort kannst du diesen Code beim Draw einbauen:
-    //
-    // if (plugin.isUploading)
-    // {
-    //     ImGui.Text($"Uploading: {plugin.uploadProgress}%");
-    //     ImGui.ProgressBar(plugin.uploadProgress / 100f, new Vector2(-1, 0));
-    // }
+    public void ToggleConfigUI() => ConfigWindow.Toggle();
+    public void ToggleMainUI() => MainWindow.Toggle();
+    public void ToggleCreditsUI() => CreditsWindow.Toggle();
 }

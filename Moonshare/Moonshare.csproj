@@ -19,6 +19,7 @@
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     <Visible>false</Visible>
   </Content>
+  <Content Include="resources\moon3.png" />
 </ItemGroup>
 
 <ItemGroup>
